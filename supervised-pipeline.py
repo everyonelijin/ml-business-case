@@ -27,6 +27,17 @@ def split_dataset(df, K=2):
    
    return list_df, list_ind
 
+def reconstruct(list_y, list_ind):
+   
+   n = np.sum([len(y) for y in list_y_pred])
+   y_pred = np.zeros(n)
+   
+   for y, ind in zip(list_y, list_ind):
+       y_pred[ind] = y
+       
+   return y_pred
+
+
 def dummify(df):
 	nonnum_cols = {}
 
@@ -68,6 +79,7 @@ def dummify(df):
 def build_fit_pipeline():
     pass
 
+
 if __name__ == '__main__':
 
 	df = pd.read_csv('train.csv', index_col='ID')
@@ -103,9 +115,6 @@ if __name__ == '__main__':
 	# Cross-validation
 	X_nan_train, X_nan_test, y_nan_train, y_nan_test = train_test_split(X_nan, y_nan, test_size=0.2, random_state=42)
 	X_full_train, X_full_test, y_full_train, y_full_test = train_test_split(X_full, y_full, test_size=0.2, random_state=42)
-
-	print (X_nan_train.shape)
-	print (X_full_train.shape)
 
 	pipe_nan = Pipeline([('pca', pca_nan), ('clf', clf_nan)])
 	pipe_full = Pipeline([('pca', pca_full), ('clf', clf_full)])
