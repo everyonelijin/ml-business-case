@@ -73,8 +73,11 @@ def dummify(df):
     return pd.concat([df, dfnew], axis=1)
 
 
-def build_fit_pipeline():
-    pass
+def prediction(pipe_nan, pipe_full, X_nan, X_full, idx_nan, idx_full):
+    y_pred_nan = pipe_nan.predict(X_nan)
+    y_pred_full = pipe_full.predict(X_full)
+    y_pred = reconstruct([y_pred_nan, y_pred_full], [idx_nan, idx_full])
+    return y_pred
 
 
 if __name__ == '__main__':
@@ -99,6 +102,7 @@ if __name__ == '__main__':
     y_nan = data_nan['target']
     X_full = data_full.ix[:, 1:]
     y_full = data_full['target']
+    y_train = reconstruct([y_nan, y_full], [idx_nan, idx_full])
 
     # Réduction de dimension
     pca_nan = PCA(n_components=25)
@@ -124,17 +128,15 @@ if __name__ == '__main__':
     pipe_full.fit(X_full_train, y_full_train)
     print("Fitting Full Model...ok")
 
+    y_pred = prediction(pipe_nan, pipe_full, X_nan, X_full, idx_nan, idx_full)
+
     # Evaluation
-    # confusion = metrics.confusion_matrix(y_test, y_pred)
-    # loss = metrics.log_loss(y_test, y_pred)
-    # print(tabulate(confusion))
+    confusion = metrics.confusion_matrix(y_train, y_pred)
+    loss = metrics.log_loss(y_train, y_pred)
+    print(tabulate(confusion))
 
     # Prediction
     df_test = pd.read_csv('test.csv', index_col='ID')
-    list_df_test, list_ind_test = split_dataset(df_test)
-    data_test_nan, data_test_full, idx_test_nan, idx_test_full = list_df_test[0], list_df_test[1], list_ind_test[0], list_ind_test[1]
-    print("Split...ok")
-    y_pred_nan = pipe_nan.predict(data_test_nan)
-    y_pred_full = pipe_full.predict(data_test_full)
-    y_pred = reconstruct([y_pred_nan, y_pred_full], [idx_test_nan, idx_test_full])
+    y_pred = prediction(pipe_nan, pipe_full, df_test)
+
     y_pred.to_csv('prediction.csv')
