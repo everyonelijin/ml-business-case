@@ -78,7 +78,6 @@ def build_fit_pipeline():
 
 
 if __name__ == '__main__':
-
     df = pd.read_csv('train.csv', index_col='ID')
     # Split du dataset
     list_df, list_ind = split_dataset(df)
