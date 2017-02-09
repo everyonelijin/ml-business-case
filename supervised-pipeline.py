@@ -79,11 +79,6 @@ def preprocess(data_nan, data_full, y, idx_nan, idx_full):
     data_full = data_full.fillna(value=-999)
     print("NaN management...ok")
 
-    # Dummyfication
-    data_nan = dummify(data_nan)
-    data_full = dummify(data_full)
-    print("Dummyfication...ok")
-
     # Get X and y
     X_nan = data_nan
     y_nan = y[idx_nan]
@@ -102,6 +97,9 @@ def prediction(pipe_nan, pipe_full, X_nan, X_full, idx_nan, idx_full):
 
 if __name__ == '__main__':
     df = pd.read_csv('train.csv', index_col='ID')
+    df = dummify(df)
+    print("Dummyfication...ok")
+
     X_train, X_test, y_train, y_test = train_test_split(df.drop('target', axis=1), df['target'], test_size=0.2, random_state=57)
 
     # Split du dataset
