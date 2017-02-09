@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_predict, cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
-
+from sklearn.preprocessing import Imputer
 from tabulate import tabulate
 
 
@@ -30,7 +30,7 @@ def split_dataset(df, K=2):
 
 def reconstruct(list_y, list_ind):
     n = np.sum([len(y) for y in list_y])
-    y_pred = np.zeros(n)
+    y_pred = np.zeros((n,list_y[0].shape[1]))
     for y, ind in zip(list_y, list_ind):
         y_pred[ind] = y
     return y_pred
@@ -72,6 +72,33 @@ def dummify(df):
     df.drop(todrop, axis=1, inplace=True)
     return pd.concat([df, dfnew], axis=1)
 
+   
+def manage_nan(df, prop_max=0.95):
+   
+   ind_keep = np.array(df.isnull().sum(axis=0) / df.shape[0] < prop_max)
+   df_no_nan = df.iloc[:, ind_keep]
+
+   col_float = df_no_nan.columns[df_no_nan.dtypes == "float64"].values
+
+   for col in col_float:
+       median = np.median(df_no_nan[col].dropna().values)
+       df_no_nan[col].fillna(median, inplace=True)
+
+   col_int = df_no_nan.columns[df_no_nan.dtypes == "int64"].values
+
+   for col in col_int:
+       impute = Imputer(strategy="most_frequent", copy=False)
+       impute.fit_transform(df_no_nan[col].dropna())
+
+   col_cat = df_no_nan.columns[df_no_nan.dtypes == "object"].values
+
+   for col in col_cat:
+       tab = df_no_nan[col].dropna().tolist()
+       mc = max(set(tab), key=tab.count)
+       df_no_nan[col].fillna(mc, inplace=True)
+   
+   return df_no_nan
+
 
 def preprocess(data_nan, data_full, y, idx_nan, idx_full):
     # Gestion des NaN
@@ -89,8 +116,9 @@ def preprocess(data_nan, data_full, y, idx_nan, idx_full):
 
 
 def prediction(pipe_nan, pipe_full, X_nan, X_full, idx_nan, idx_full):
-    y_pred_nan = pipe_nan.predict(X_nan)
-    y_pred_full = pipe_full.predict(X_full)
+    y_pred_nan = pipe_nan.predict_proba(X_nan)
+    print (y_pred_nan)
+    y_pred_full = pipe_full.predict_proba(X_full)
     y_pred = reconstruct([y_pred_nan, y_pred_full], [idx_nan, idx_full])
     return y_pred
 
@@ -110,13 +138,14 @@ if __name__ == '__main__':
     # Preprocess data
     X_nan, X_full, y_nan, y_full = preprocess(data_nan, data_full, y_train, idx_nan, idx_full)
 
+
     # Réduction de dimension
     pca_nan = PCA(n_components=25)
     pca_full = PCA(n_components=25)
 
     # Random Forest
-    clf_nan = RandomForestClassifier(n_estimators=10, max_depth=4)
-    clf_full = RandomForestClassifier(n_estimators=10, max_depth=4)
+    clf_nan = RandomForestClassifier(n_estimators=40, max_depth=4)
+    clf_full = RandomForestClassifier(n_estimators=40, max_depth=4)
 
     # Cross-validation
     # X_nan_train, X_nan_test, y_nan_train, y_nan_test = train_test_split(X_nan, y_nan, test_size=0.2, random_state=42)
@@ -138,12 +167,9 @@ if __name__ == '__main__':
     # Preprocess data
     X_test_nan, X_test_full, y_test_nan, y_test_full = preprocess(data_test_nan, data_test_full, y_test, idx_test_nan, idx_test_full)
 
-    y_pred = prediction(pipe_nan, pipe_full, X_test_nan, X_test_full, idx_test_nan, idx_test_full)
-
-    confusion = metrics.confusion_matrix(y_test, y_pred)
-    loss = metrics.log_loss(y_test, y_pred)
-    print(tabulate(confusion))
-    y_pred.to_csv('validation.csv', headers=['ID', 'PredictedProb'])
+    y_proba = prediction(pipe_nan, pipe_full, X_test_nan, X_test_full, idx_test_nan, idx_test_full)
+    y_proba = pd.DataFrame(np.concatenate((y_proba,y_test.values.reshape(y_test.values.shape[0],1)), axis=1))
+    y_proba.to_csv('validation.csv')
 
     # # Prediction
     # df_test = pd.read_csv('test.csv', index_col='ID')
