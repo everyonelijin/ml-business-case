@@ -82,8 +82,10 @@ def prediction(pipe_nan, pipe_full, X_nan, X_full, idx_nan, idx_full):
 
 if __name__ == '__main__':
     df = pd.read_csv('train.csv', index_col='ID')
+    X_train, X_test, y_train, y_test = train_test_split(df.drop('target', axis=1), df['target'], test_size=0.2, random_state=57)
+
     # Split du dataset
-    list_df, list_ind = split_dataset(df)
+    list_df, list_ind = split_dataset(X_train)
     data_nan, data_full, idx_nan, idx_full = list_df[0], list_df[1], list_ind[0], list_ind[1]
     print("Split...ok")
 
@@ -98,11 +100,10 @@ if __name__ == '__main__':
     print("Dummyfication...ok")
 
     # Get X and Y
-    X_nan = data_nan.ix[:, 1:]
-    y_nan = data_nan['target']
-    X_full = data_full.ix[:, 1:]
-    y_full = data_full['target']
-    y_train = reconstruct([y_nan, y_full], [idx_nan, idx_full])
+    X_nan = data_nan
+    y_nan = y_train[idx_nan]
+    X_full = data_full
+    y_full = y_train[idx_full]
 
     # Réduction de dimension
     pca_nan = PCA(n_components=25)
@@ -113,30 +114,44 @@ if __name__ == '__main__':
     clf_full = RandomForestClassifier(n_estimators=10, max_depth=4)
 
     # Cross-validation
-    X_nan_train, X_nan_test, y_nan_train, y_nan_test = train_test_split(X_nan, y_nan, test_size=0.2, random_state=42)
-    X_full_train, X_full_test, y_full_train, y_full_test = train_test_split(X_full, y_full, test_size=0.2, random_state=42)
-
-    print(X_nan_train.shape)
-    print(X_full_train.shape)
+    # X_nan_train, X_nan_test, y_nan_train, y_nan_test = train_test_split(X_nan, y_nan, test_size=0.2, random_state=42)
+    # X_full_train, X_full_test, y_full_train, y_full_test = train_test_split(X_full, y_full, test_size=0.2, random_state=42)
 
     pipe_nan = Pipeline([('pca', pca_nan), ('clf', clf_nan)])
     pipe_full = Pipeline([('pca', pca_full), ('clf', clf_full)])
 
     # Entrainement (+ CV pour les hyperparamètres)
-    pipe_nan.fit(X_nan_train, y_nan_train)
-    print("Fitting NaN Model...ok")
-    pipe_full.fit(X_full_train, y_full_train)
-    print("Fitting Full Model...ok")
-
-    y_pred = prediction(pipe_nan, pipe_full, X_nan, X_full, idx_nan, idx_full)
+    pipe_nan.fit(X_nan, y_nan)
+    # print("Fitting NaN Model...ok")
+    pipe_full.fit(X_full, y_full)
+    # print("Fitting Full Model...ok")
 
     # Evaluation
-    confusion = metrics.confusion_matrix(y_train, y_pred)
-    loss = metrics.log_loss(y_train, y_pred)
+    # Prepare validation dataset
+    test_df, test_ind = split_dataset(X_test)
+    data_test_nan, data_test_full, idx_test_nan, idx_test_full = test_df[0], test_df[1], test_ind[0], test_ind[1]
+    # Get X and y
+    X_test_nan = data_test_nan
+    y_test_nan = y_test[idx_test_nan]
+    X_test_full = data_test_full
+    y_test_full = y_test[idx_test_full]
+
+    y_pred = prediction(pipe_nan, pipe_full, X_test_nan, X_test_full, idx_test_nan, idx_test_full)
+
+    confusion = metrics.confusion_matrix(y_test, y_pred)
+    loss = metrics.log_loss(y_test, y_pred)
     print(tabulate(confusion))
+    y_pred.to_csv('validation.csv', headers=['ID','PredictedProb'])
 
-    # Prediction
-    df_test = pd.read_csv('test.csv', index_col='ID')
-    y_pred = prediction(pipe_nan, pipe_full, df_test)
+    # # Prediction
+    # df_test = pd.read_csv('test.csv', index_col='ID')
+    # test_df, test_ind = split_dataset(X_test)
+    # data_test_nan, data_test_full, idx_test_nan, idx_test_full = test_df[0], test_df[1], test_ind[0], test_ind[1]
+    # # Get X and y
+    # X_test_nan = data_test_nan
+    # y_test_nan = y_test[idx_test_nan]
+    # X_test_full = data_test_full
+    # y_test_full = y_test[idx_test_full]
 
-    y_pred.to_csv('prediction.csv')
+    # y_pred = prediction(pipe_nan, pipe_full, X_test_nan, X_test_full, idx_test_nan, idx_test_full)
+    # y_pred.to_csv('submission.csv', headers=['ID','PredictedProb'])
