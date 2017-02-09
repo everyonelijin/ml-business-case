@@ -73,6 +73,26 @@ def dummify(df):
     return pd.concat([df, dfnew], axis=1)
 
 
+def preprocess(data_nan, data_full, y, idx_nan, idx_full):
+    # Gestion des NaN
+    data_nan = data_nan.fillna(value=-999)
+    data_full = data_full.fillna(value=-999)
+    print("NaN management...ok")
+
+    # Dummyfication
+    data_nan = dummify(data_nan)
+    data_full = dummify(data_full)
+    print("Dummyfication...ok")
+
+    # Get X and y
+    X_nan = data_nan
+    y_nan = y[idx_nan]
+    X_full = data_full
+    y_full = y[idx_full]
+
+    return X_nan, X_full, y_nan, y_full
+
+
 def prediction(pipe_nan, pipe_full, X_nan, X_full, idx_nan, idx_full):
     y_pred_nan = pipe_nan.predict(X_nan)
     y_pred_full = pipe_full.predict(X_full)
@@ -89,21 +109,8 @@ if __name__ == '__main__':
     data_nan, data_full, idx_nan, idx_full = list_df[0], list_df[1], list_ind[0], list_ind[1]
     print("Split...ok")
 
-    # Gestion des NaN
-    data_nan = data_nan.fillna(value=-999)
-    data_full = data_full.fillna(value=-999)
-    print("NaN management...ok")
-
-    # Dummyfication
-    data_nan = dummify(data_nan)
-    data_full = dummify(data_full)
-    print("Dummyfication...ok")
-
-    # Get X and Y
-    X_nan = data_nan
-    y_nan = y_train[idx_nan]
-    X_full = data_full
-    y_full = y_train[idx_full]
+    # Preprocess data
+    X_nan, X_full, y_nan, y_full = preprocess(data_nan, data_full, y_train, idx_nan, idx_full)
 
     # Réduction de dimension
     pca_nan = PCA(n_components=25)
@@ -130,18 +137,15 @@ if __name__ == '__main__':
     # Prepare validation dataset
     test_df, test_ind = split_dataset(X_test)
     data_test_nan, data_test_full, idx_test_nan, idx_test_full = test_df[0], test_df[1], test_ind[0], test_ind[1]
-    # Get X and y
-    X_test_nan = data_test_nan
-    y_test_nan = y_test[idx_test_nan]
-    X_test_full = data_test_full
-    y_test_full = y_test[idx_test_full]
+    # Preprocess data
+    X_test_nan, X_test_full, y_test_nan, y_test_full = preprocess(data_test_nan, data_test_full, y_test, idx_test_nan, idx_test_full)
 
     y_pred = prediction(pipe_nan, pipe_full, X_test_nan, X_test_full, idx_test_nan, idx_test_full)
 
     confusion = metrics.confusion_matrix(y_test, y_pred)
     loss = metrics.log_loss(y_test, y_pred)
     print(tabulate(confusion))
-    y_pred.to_csv('validation.csv', headers=['ID','PredictedProb'])
+    y_pred.to_csv('validation.csv', headers=['ID', 'PredictedProb'])
 
     # # Prediction
     # df_test = pd.read_csv('test.csv', index_col='ID')
