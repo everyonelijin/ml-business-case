@@ -142,13 +142,6 @@ def reconstruct(y_list, idx_list):
         return out
 
 
-def prediction(pipe_nan, pipe_full, X_nan, X_full, idx_nan, idx_full):
-    y_pred_nan = pipe_nan.predict(X_nan)
-    y_pred_full = pipe_full.predict(X_full)
-    y_pred = reconstruct([y_pred_nan, y_pred_full], [idx_nan, idx_full])
-    return y_pred
-
-
 if __name__ == '__main__':
     df = pd.read_csv('train.csv', index_col='ID')
     print("Loading dataset... ok")
