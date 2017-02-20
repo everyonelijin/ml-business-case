@@ -1,15 +1,13 @@
 import numpy as np
 import pandas as pd
-from sklearn import metrics
 from sklearn.base import TransformerMixin
 from sklearn.cluster import KMeans
-from sklearn.decomposition import PCA
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelBinarizer
 
-from tabulate import tabulate
+
+def copy_estimator(est):
+    """Util function to duplicate a sklearn.base.BaseEstimator object"""
+    return est.__class__(**est.get_params(deep=True))
 
 
 class DataFrameImputer(TransformerMixin):
