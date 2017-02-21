@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     # Validation set predictions
     Xv_full, Xv_nan, yv_full, yv_nan, idxv_full, idxv_nan = preprocess(X_val, y_val)
-    preds_full = stack_full.predict(Xv_full)
+    preds_full = stack_full.predict(Xv_full)  # TODO: compute only probas then threhold to get prediction (otherwise, probas are computed twice)
     probas_full = stack_full.predict_proba(Xv_full)
     preds_nan = stack_nan.predict(Xv_nan)
     probas_nan = stack_nan.predict_proba(Xv_nan)

@@ -5,21 +5,18 @@ from utils import copy_estimator
 
 
 class StackingClassifier():
-    def __init__(self, probas_clfs, final_clf, transformer=None, k=3):
+    def __init__(self, probas_clfs, final_clf, transformer=None):
         """
         Args:
             probas_clfs (list of tuples): list of estimators to predict the probabilities, it takes to form of a list of tuple `[('est1_name', est1), ('est2_name', est2), ...]`
             final_clf: the final classifier, trained over the intermediate probabilities
             transformer (sklearn.base.TransformerMixin): object that processes transformations over the dataset (dummyfication, PCA, etc.)
-            k (int): number of folds in the CV process
         """
-        self.k = k
         self.transformer = transformer
         # we need an independent set of estimators for each fold of the CV for the 1st level model
-        self.probas_clfs = [[(name, copy_estimator(clf)) for name, clf in probas_clfs] for _ in range(self.k)]
+        self.probas_clfs = [(name, copy_estimator(clf)) for name, clf in probas_clfs]  # TODO: maybe copy_estimator is not useful anymore
         self.final_clf = final_clf
         self._transformer_fitted = transformer is None
-        self._skf = StratifiedKFold(n_splits=self.k)
         self._layer_fitted = False
         self._layer_probas = None
         self._final_fitted = False
@@ -35,26 +32,22 @@ class StackingClassifier():
         return X if self.transformer is None else self.transformer.transform(X)
 
     def _fit_layer(self, X, y, verbose=False):
-        probas = np.zeros((y.shape[0], len(self.probas_clfs[0])))
-        for i, (train_idx, test_idx) in enumerate(self._skf.split(X, y)):
+        probas = np.zeros((y.shape[0], len(self.probas_clfs)))
+        for j, (clf_name, clf) in enumerate(self.probas_clfs):
             if verbose:
-                print("Fold %d/%d" % (i + 1, len(self.probas_clfs)))
-            for j, (clf_name, clf) in enumerate(self.probas_clfs[i]):
-                if verbose:
-                    print("    Estimator '%s'" % (clf_name))
-                clf.fit(self._transform(X.iloc[train_idx]), y.iloc[train_idx])
-                probas[test_idx, j] = clf.predict_proba(self._transform(X.iloc[test_idx]))[:, 1]
+                print("Estimator '%s'" % (clf_name))
+            clf.fit(self._transform(X), y)
+            probas[:, j] = clf.predict_proba(self._transform(X))[:, 1]
         self._layer_fitted = True
         return probas
 
     def _predict_layer_probas(self, X):
         if not self._layer_fitted:
             raise Exception("Intermediate estimators not fitted.")
-        probas = np.empty((X.shape[0], len(self.probas_clfs[0]), self.k))
-        for i in range(self.k):
-            for j, (_, c) in enumerate(self.probas_clfs[i]):
-                probas[:, j, i] = c.predict_proba(self._transform(X))[:, 1]
-        return np.mean(probas, axis=2)
+        probas = np.empty((X.shape[0], len(self.probas_clfs)))
+        for j, (_, c) in enumerate(self.probas_clfs):
+            probas[:, j] = c.predict_proba(self._transform(X))[:, 1]
+        return probas
 
     def _fit_final(self, probas, y, verbose=False):
         if not self._layer_fitted:
